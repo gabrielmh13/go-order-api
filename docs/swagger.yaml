@@ -1,0 +1,226 @@
+basePath: /
+definitions:
+  go-order-api_internal_domain_order.Order:
+    properties:
+      createdAt:
+        type: string
+      customerId:
+        type: string
+      id:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/go-order-api_internal_domain_order.OrderItem'
+        type: array
+      status:
+        $ref: '#/definitions/go-order-api_internal_domain_order.OrderStatus'
+      totalAmount:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  go-order-api_internal_domain_order.OrderItem:
+    properties:
+      price:
+        type: integer
+      productId:
+        type: string
+      quantity:
+        type: integer
+    type: object
+  go-order-api_internal_domain_order.OrderStatus:
+    enum:
+    - created
+    - processing
+    - shipped
+    - delivered
+    type: string
+    x-enum-varnames:
+    - StatusCreated
+    - StatusProcessing
+    - StatusShipped
+    - StatusDelivered
+  go-order-api_internal_usecase_order.CreateOrderInput:
+    properties:
+      customerId:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/go-order-api_internal_usecase_order.CreateOrderItem'
+        type: array
+    required:
+    - customerId
+    - items
+    type: object
+  go-order-api_internal_usecase_order.CreateOrderItem:
+    properties:
+      price:
+        type: integer
+      productId:
+        type: string
+      quantity:
+        type: integer
+    required:
+    - price
+    - productId
+    - quantity
+    type: object
+  internal_infra_http_handler.updateStatusRequest:
+    properties:
+      status:
+        allOf:
+        - $ref: '#/definitions/go-order-api_internal_domain_order.OrderStatus'
+        enum:
+        - created
+        - processing
+        - shipped
+        - delivered
+    required:
+    - status
+    type: object
+host: localhost:3333
+info:
+  contact: {}
+  description: This is a sample Order Management API using Hexagonal Architecture.
+  title: Order Management API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      description: Validates the health of the application and its dependencies (MongoDB,
+        RabbitMQ).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: API Healthcheck
+      tags:
+      - health
+  /orders:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new order with the given items and customer ID.
+      parameters:
+      - description: Order creation payload
+        in: body
+        name: order
+        required: true
+        schema:
+          $ref: '#/definitions/go-order-api_internal_usecase_order.CreateOrderInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/go-order-api_internal_domain_order.Order'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new order
+      tags:
+      - orders
+  /orders/{id}:
+    get:
+      description: Retrieves details of a specific order.
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/go-order-api_internal_domain_order.Order'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get an order by ID
+      tags:
+      - orders
+  /orders/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the status of an existing order.
+      parameters:
+      - description: Order ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New status payload
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/internal_infra_http_handler.updateStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update order status
+      tags:
+      - orders
+swagger: "2.0"
