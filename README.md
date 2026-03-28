@@ -30,7 +30,7 @@ O projeto segue os princípios da **Arquitetura Hexagonal**:
 Para subir toda a infraestrutura e a aplicação:
 
 ```bash
-docker-compose up --build
+docker-compose build --no-cache && docker-compose up
 ```
 
 A aplicação estará disponível em `http://localhost:3333`.
