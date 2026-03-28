@@ -43,7 +43,7 @@ A aplicação estará disponível em `http://localhost:3333`.
 | GET | `/orders/:id` | Consultar pedido por ID |
 | PATCH | `/orders/:id/status` | Atualizar status do pedido |
 | GET | `/health` | Healthcheck detalhado (Mongo + Rabbit) |
-| GET | `/swagger/*any` | Documentação interativa (Swagger UI) |
+| GET | `/swagger/index.html` | Documentação interativa (Swagger UI) |
 
 A documentação interativa pode ser acessada em `http://localhost:3333/swagger/index.html`.
 
@@ -67,10 +67,10 @@ A documentação interativa pode ser acessada em `http://localhost:3333/swagger/
 
 Os testes unitários cobrem os casos de uso principais e as regras de transição de status utilizando mocks para as interfaces de infraestrutura.
 
-Para executar os testes e ver a cobertura:
+Para executar os testes focados na lógica de negócio (Entidades, Casos de Uso e Handlers) e ver a cobertura:
 
 ```bash
-go test -v ./internal/usecase/order/... -coverprofile=coverage.out
+go test -v ./internal/domain/order/... ./internal/usecase/order/... ./internal/infra/http/handler/... -coverprofile=coverage.out
 go tool cover -func=coverage.out
 ```
 

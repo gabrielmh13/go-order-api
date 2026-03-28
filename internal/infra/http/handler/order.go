@@ -12,16 +12,16 @@ import (
 )
 
 type OrderHandler struct {
-	createOrderUC       *usecase.CreateOrderUseCase
-	getOrderUC          *usecase.GetOrderUseCase
-	updateOrderStatusUC *usecase.UpdateOrderStatusUseCase
+	createOrderUC       usecase.ICreateOrderUseCase
+	getOrderUC          usecase.IGetOrderUseCase
+	updateOrderStatusUC usecase.IUpdateOrderStatusUseCase
 	logger              logger.Logger
 }
 
 func NewOrderHandler(
-	createUC *usecase.CreateOrderUseCase,
-	getUC *usecase.GetOrderUseCase,
-	updateUC *usecase.UpdateOrderStatusUseCase,
+	createUC usecase.ICreateOrderUseCase,
+	getUC usecase.IGetOrderUseCase,
+	updateUC usecase.IUpdateOrderStatusUseCase,
 	l logger.Logger,
 ) *OrderHandler {
 	return &OrderHandler{

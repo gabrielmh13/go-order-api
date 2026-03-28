@@ -21,6 +21,10 @@ type CreateOrderUseCase struct {
 	orderRepo order.IOrderRepository
 }
 
+type ICreateOrderUseCase interface {
+	Execute(ctx context.Context, input CreateOrderInput) (*order.Order, error)
+}
+
 func NewCreateOrderUseCase(repo order.IOrderRepository) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
 		orderRepo: repo,
@@ -37,7 +41,10 @@ func (uc *CreateOrderUseCase) Execute(ctx context.Context, input CreateOrderInpu
 		}
 	}
 
-	newOrder := order.NewOrder(input.CustomerID, items)
+	newOrder, err := order.NewOrder(input.CustomerID, items)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := uc.orderRepo.Save(ctx, newOrder); err != nil {
 		return nil, err

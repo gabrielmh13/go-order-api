@@ -18,6 +18,10 @@ type UpdateOrderStatusUseCase struct {
 	broker broker.IMessageBroker
 }
 
+type IUpdateOrderStatusUseCase interface {
+	Execute(ctx context.Context, input UpdateOrderStatusInput) error
+}
+
 func NewUpdateOrderStatusUseCase(r order.IOrderRepository, b broker.IMessageBroker) *UpdateOrderStatusUseCase {
 	return &UpdateOrderStatusUseCase{
 		repo:   r,

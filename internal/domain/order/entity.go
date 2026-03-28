@@ -19,6 +19,8 @@ const (
 var (
 	ErrInvalidStatusTransition = errors.New("invalid status transition")
 	ErrOrderNotFound           = errors.New("order not found")
+	ErrEmptyOrder              = errors.New("order must have at least one item")
+	ErrInvalidItemPrice        = errors.New("item price cannot be negative")
 )
 
 type OrderItem struct {
@@ -37,9 +39,16 @@ type Order struct {
 	UpdatedAt   time.Time   `json:"updatedAt" bson:"updatedAt"`
 }
 
-func NewOrder(customerID string, items []OrderItem) *Order {
+func NewOrder(customerID string, items []OrderItem) (*Order, error) {
+	if len(items) == 0 {
+		return nil, ErrEmptyOrder
+	}
+
 	var total int64
 	for _, item := range items {
+		if item.Price < 0 {
+			return nil, ErrInvalidItemPrice
+		}
 		total += item.Price * int64(item.Quantity)
 	}
 
@@ -52,7 +61,7 @@ func NewOrder(customerID string, items []OrderItem) *Order {
 		Status:      StatusCreated,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}
+	}, nil
 }
 
 func (o *Order) UpdateStatus(newStatus OrderStatus) error {
