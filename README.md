@@ -35,6 +35,11 @@ docker compose build --no-cache && docker compose up -d
 
 A aplicação estará disponível em `http://localhost:3333`.
 
+### 🛠️ Monitoramento (RabbitMQ)
+A interface de gerenciamento do RabbitMQ pode ser acessada em `http://localhost:15672`.
+- **Usuário/Senha:** (Conforme definido no seu `.env`)
+- **Filas:** Você pode visualizar as mensagens publicadas e o status das filas em tempo real.
+
 ## Endpoints
 
 | Método | Rota | Descrição |
