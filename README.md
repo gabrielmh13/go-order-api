@@ -30,7 +30,7 @@ O projeto segue os princípios da **Arquitetura Hexagonal**:
 Para subir toda a infraestrutura e a aplicação:
 
 ```bash
-docker-compose build --no-cache && docker-compose up
+docker compose build --no-cache && docker compose up -d
 ```
 
 A aplicação estará disponível em `http://localhost:3333`.
@@ -85,3 +85,27 @@ O arquivo `.env` (baseado no `.env.example`) controla as configurações:
 - `RABBITMQ_URL`: URL de conexão com o RabbitMQ.
 - `RABBITMQ_USER`: Usuário do RabbitMQ.
 - `RABBITMQ_PASS`: Senha do RabbitMQ.
+
+## 🚀 Melhorias Futuras (Roadmap)
+
+Embora o projeto já siga boas práticas de arquitetura, as seguintes evoluções são recomendadas para um ambiente de produção real:
+
+1.  **Validações de Domínio Estendidas**:
+    *   **Estoque**: Integração com um serviço de catálogo/estoque para validar a disponibilidade antes de confirmar o pedido.
+    *   **Clientes**: Validação de existência e status do cliente em um serviço de Identity/CRM.
+
+2.  **Resiliência e Consistência (Transactional Outbox)**:
+    *   Implementar o **Outbox Pattern** para garantir a consistência eventual. Em vez de publicar diretamente no RabbitMQ, os eventos seriam salvos no MongoDB na mesma transação do pedido e um worker separado processaria o envio com **Retry e Exponential Backoff**.
+
+3.  **Seguraça**:
+    *   Implementação de autenticação e autorização (ex: JWT/OAuth2) para garantir que apenas clientes e sistemas autorizados acessem os endpoints.
+
+4.  **Observabilidade**:
+    *   **Métricas**: Integração com Prometheus/Grafana para monitorar latência, taxas de erro e vazão.
+    *   **Tracing**: Implementação de OpenTelemetry para rastreio distribuído de requisições entre camadas e serviços.
+
+5.  **Estabilidade**:
+    *   **Circuit Breaker**: Implementação de disjuntores (ex: `gobreaker`) nas chamadas para RabbitMQ e MongoDB para evitar falhas em cascata durante instabilidades na infraestrutura.
+
+6.  **Idempotência**:
+    *   Implementação de suporte a chaves de idempotência (ex: header `X-Idempotency-Key`) nos endpoints de criação e atualização para evitar o processamento duplicado de requisições em caso de falhas de rede ou retentativas automáticas do cliente.
