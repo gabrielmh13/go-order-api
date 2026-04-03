@@ -8,7 +8,7 @@ import (
 
 type CreateOrderInput struct {
 	CustomerID string            `json:"customerId" binding:"required"`
-	Items      []CreateOrderItem `json:"items" binding:"required,gt=0"`
+	Items      []CreateOrderItem `json:"items" binding:"required,gt=0,dive"`
 }
 
 type CreateOrderItem struct {
