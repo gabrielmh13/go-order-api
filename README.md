@@ -7,6 +7,7 @@ Este é um serviço backend de gerenciamento de pedidos de e-commerce, desenvolv
 - **Linguagem:** Go 1.26.1
 - **Framework Web:** [Gin](https://gin-gonic.com/)
 - **Banco de Dados:** [MongoDB](https://www.mongodb.com/)
+- **Cache:** [Redis](https://redis.io/)
 - **Mensageria:** [RabbitMQ](https://www.rabbitmq.com/)
 - **Logger:** [Zap (Uber)](https://github.com/uber-go/zap)
 - **Containerização:** Docker & Docker Compose
@@ -22,6 +23,7 @@ O projeto segue os princípios da **Arquitetura Hexagonal**:
 ### Destaques da Implementação
 - **Broker Genérico:** O sistema de mensageria é totalmente desacoplado, permitindo publicar qualquer payload em qualquer fila/tópico através de uma interface genérica.
 - **Healthcheck Dinâmico:** Um sistema de monitoramento extensível que valida a saúde de múltiplos serviços (MongoDB, RabbitMQ) de forma independente.
+- **Cache com Reconexão Automática:** As leituras de pedidos usam Redis como cache, mas a aplicação sobe mesmo se o Redis estiver fora do ar inicialmente e volta a usar o cache automaticamente quando ele retornar.
 - **Logging Estruturado:** Injeção de dependência do Logger em todas as camadas, permitindo fácil substituição e rastreabilidade.
 - **Precisão Financeira:** Utilização de `int64` para valores monetários (centavos) para evitar problemas de precisão com pontos flutuantes.
 
@@ -34,6 +36,8 @@ docker compose build --no-cache && docker compose up -d
 ```
 
 A aplicação estará disponível em `http://localhost:3333`.
+
+O Redis também será iniciado pelo `docker compose` e usado como camada de cache para consultas de pedidos, mas a aplicação não depende dele para concluir o startup.
 
 ### 🛠️ Monitoramento (RabbitMQ)
 A interface de gerenciamento do RabbitMQ pode ser acessada em `http://localhost:15672`.
@@ -90,6 +94,26 @@ O arquivo `.env` (baseado no `.env.example`) controla as configurações:
 - `RABBITMQ_URL`: URL de conexão com o RabbitMQ.
 - `RABBITMQ_USER`: Usuário do RabbitMQ.
 - `RABBITMQ_PASS`: Senha do RabbitMQ.
+- `REDIS_ADDR`: Endereço do Redis.
+- `REDIS_PASSWORD`: Senha do Redis.
+- `REDIS_DB`: Índice do banco lógico no Redis.
+- `ORDER_CACHE_TTL`: TTL do cache de pedidos (ex: `5m`).
+
+## Cache com Redis
+
+O fluxo de consulta de pedidos funciona assim:
+- A API tenta buscar o pedido no Redis.
+- Se encontrar, responde do cache.
+- Se não encontrar, ou se houver erro no Redis, busca no MongoDB.
+- Após buscar no MongoDB, tenta popular o cache novamente.
+- Ao atualizar o status do pedido, a chave correspondente é invalidada no cache.
+
+Se o Redis estiver indisponível no startup ou falhar durante a execução:
+- A aplicação continua operando.
+- A consulta faz fallback para o MongoDB.
+- Falhas de leitura, escrita ou invalidação no cache não interrompem a operação principal.
+- O cache é tratado como otimização, não como dependência para a regra principal de negócio.
+- Quando o Redis voltar, o client existente pode retomar o uso do cache sem reiniciar a aplicação.
 
 ## 🚀 Melhorias Futuras (Roadmap)
 
