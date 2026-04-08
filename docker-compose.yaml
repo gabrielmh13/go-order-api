@@ -9,11 +9,17 @@ services:
       - MONGO_URI=${MONGO_URI}
       - DB_NAME=${DB_NAME}
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - REDIS_ADDR=${REDIS_ADDR}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+      - ORDER_CACHE_TTL=${ORDER_CACHE_TTL}
       - GIN_MODE=debug
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - app-network
@@ -52,6 +58,20 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+    networks:
+      - app-network
+
+  redis:
+    container_name: go-order-api-redis
+    image: redis:8.2-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - app-network
 
