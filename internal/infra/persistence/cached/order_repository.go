@@ -26,6 +26,10 @@ func NewOrderRepository(repo order.IOrderRepository, cache domaincache.ICache, t
 	}
 }
 
+func (r *OrderRepository) isCacheAvailable(ctx context.Context) bool {
+	return r.cache != nil && r.cache.IsHealthy(ctx)
+}
+
 func (r *OrderRepository) Save(ctx context.Context, o *order.Order) error {
 	if err := r.repo.Save(ctx, o); err != nil {
 		return err
@@ -38,14 +42,14 @@ func (r *OrderRepository) Save(ctx context.Context, o *order.Order) error {
 func (r *OrderRepository) GetByID(ctx context.Context, id string) (*order.Order, error) {
 	key := r.cacheKey(id)
 
-	if r.cache != nil {
+	if r.isCacheAvailable(ctx) {
 		cachedValue, err := r.cache.Get(ctx, key)
 		if err == nil && cachedValue != "" {
 			var cachedOrder order.Order
-			if unmarshalErr := json.Unmarshal([]byte(cachedValue), &cachedOrder); unmarshalErr == nil {
-				return &cachedOrder, nil
-			} else {
+			if unmarshalErr := json.Unmarshal([]byte(cachedValue), &cachedOrder); unmarshalErr != nil {
 				r.logger.Error("Failed to unmarshal cached order", unmarshalErr, logger.Any("orderId", id))
+			} else {
+				return &cachedOrder, nil
 			}
 			if deleteErr := r.cache.Delete(ctx, key); deleteErr != nil {
 				r.logger.Warning("Failed to delete invalid cached order", logger.Any("orderId", id))
@@ -69,7 +73,7 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, id string, status or
 		return err
 	}
 
-	if r.cache == nil {
+	if !r.isCacheAvailable(ctx) {
 		return nil
 	}
 
@@ -84,7 +88,7 @@ func (r *OrderRepository) cacheKey(id string) string {
 }
 
 func (r *OrderRepository) setCache(ctx context.Context, o *order.Order) {
-	if r.cache == nil {
+	if !r.isCacheAvailable(ctx) {
 		return
 	}
 

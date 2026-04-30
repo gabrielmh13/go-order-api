@@ -40,7 +40,7 @@ func New() (*App, error) {
 	orderRepo := mongodb.NewOrderRepository(db, zapLogger)
 
 	redisClient, err := infraredis.NewConnection(ctx, config.AppConfig.RedisAddr, config.AppConfig.RedisPassword, config.AppConfig.RedisDB, zapLogger)
-	cache := infraredis.NewCache(redisClient, zapLogger)
+	cache := infraredis.NewCache(ctx, redisClient, zapLogger)
 	if err != nil {
 		zapLogger.Warning("Redis unavailable at startup, continuing with cache client for automatic recovery")
 	}
