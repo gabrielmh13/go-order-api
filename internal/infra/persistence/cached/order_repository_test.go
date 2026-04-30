@@ -18,6 +18,11 @@ type mockCache struct {
 	mock.Mock
 }
 
+func (m *mockCache) IsHealthy(ctx context.Context) bool {
+	args := m.Called(ctx)
+	return args.Bool(0)
+}
+
 func (m *mockCache) Get(ctx context.Context, key string) (string, error) {
 	args := m.Called(ctx, key)
 	return args.String(0), args.Error(1)
@@ -70,6 +75,7 @@ func TestOrderRepository_GetByID_ReturnsCachedOrder(t *testing.T) {
 	repo := new(mockOrderRepository)
 	cachedRepo := NewOrderRepository(repo, cache, 5*time.Minute, &noopLogger{})
 
+	cache.On("IsHealthy", mock.Anything).Return(true)
 	cache.On("Get", mock.Anything, "order:order-1").Return(`{"id":"order-1","customerId":"cust-1","items":[{"productId":"p1","quantity":1,"price":100}],"totalAmount":100,"status":"created","createdAt":"2026-04-07T12:00:00Z","updatedAt":"2026-04-07T12:00:00Z"}`, nil).Once()
 
 	result, err := cachedRepo.GetByID(context.Background(), "order-1")
@@ -88,6 +94,7 @@ func TestOrderRepository_GetByID_LoadsFromRepositoryAndCaches(t *testing.T) {
 
 	o := &order.Order{ID: "order-1", CustomerID: "cust-1", Status: order.StatusCreated}
 
+	cache.On("IsHealthy", mock.Anything).Return(true)
 	cache.On("Get", mock.Anything, "order:order-1").Return("", nil).Once()
 	repo.On("GetByID", mock.Anything, "order-1").Return(o, nil).Once()
 	cache.On("Set", mock.Anything, "order:order-1", mock.AnythingOfType("string"), 5*time.Minute).Return(nil).Once()
@@ -107,9 +114,10 @@ func TestOrderRepository_GetByID_FallsBackWhenCacheFails(t *testing.T) {
 
 	o := &order.Order{ID: "order-1", CustomerID: "cust-1", Status: order.StatusCreated}
 
+	cache.On("IsHealthy", mock.Anything).Return(true).Once()
 	cache.On("Get", mock.Anything, "order:order-1").Return("", errors.New("redis down")).Once()
 	repo.On("GetByID", mock.Anything, "order-1").Return(o, nil).Once()
-	cache.On("Set", mock.Anything, "order:order-1", mock.AnythingOfType("string"), 5*time.Minute).Return(nil).Once()
+	cache.On("IsHealthy", mock.Anything).Return(false).Once()
 
 	result, err := cachedRepo.GetByID(context.Background(), "order-1")
 
@@ -119,11 +127,31 @@ func TestOrderRepository_GetByID_FallsBackWhenCacheFails(t *testing.T) {
 	repo.AssertExpectations(t)
 }
 
+func TestOrderRepository_GetByID_BypassesCacheWhenUnhealthy(t *testing.T) {
+	cache := new(mockCache)
+	repo := new(mockOrderRepository)
+	cachedRepo := NewOrderRepository(repo, cache, 5*time.Minute, &noopLogger{})
+
+	o := &order.Order{ID: "order-1", CustomerID: "cust-1", Status: order.StatusCreated}
+
+	cache.On("IsHealthy", mock.Anything).Return(false)
+	repo.On("GetByID", mock.Anything, "order-1").Return(o, nil).Once()
+
+	result, err := cachedRepo.GetByID(context.Background(), "order-1")
+
+	assert.NoError(t, err)
+	assert.Equal(t, o, result)
+	cache.AssertNotCalled(t, "Get", mock.Anything, mock.Anything)
+	cache.AssertNotCalled(t, "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	repo.AssertExpectations(t)
+}
+
 func TestOrderRepository_UpdateStatus_InvalidatesCache(t *testing.T) {
 	cache := new(mockCache)
 	repo := new(mockOrderRepository)
 	cachedRepo := NewOrderRepository(repo, cache, 5*time.Minute, &noopLogger{})
 
+	cache.On("IsHealthy", mock.Anything).Return(true)
 	repo.On("UpdateStatus", mock.Anything, "order-1", order.StatusProcessing).Return(nil).Once()
 	cache.On("Delete", mock.Anything, "order:order-1").Return(nil).Once()
 
@@ -131,6 +159,21 @@ func TestOrderRepository_UpdateStatus_InvalidatesCache(t *testing.T) {
 
 	assert.NoError(t, err)
 	cache.AssertExpectations(t)
+	repo.AssertExpectations(t)
+}
+
+func TestOrderRepository_UpdateStatus_SkipsCacheWhenUnhealthy(t *testing.T) {
+	cache := new(mockCache)
+	repo := new(mockOrderRepository)
+	cachedRepo := NewOrderRepository(repo, cache, 5*time.Minute, &noopLogger{})
+
+	cache.On("IsHealthy", mock.Anything).Return(false)
+	repo.On("UpdateStatus", mock.Anything, "order-1", order.StatusProcessing).Return(nil).Once()
+
+	err := cachedRepo.UpdateStatus(context.Background(), "order-1", order.StatusProcessing)
+
+	assert.NoError(t, err)
+	cache.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
 	repo.AssertExpectations(t)
 }
 

@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	domaincache "go-order-api/internal/domain/cache"
@@ -11,17 +12,58 @@ import (
 )
 
 type Cache struct {
-	client *goredis.Client
-	logger logger.Logger
+	client  *goredis.Client
+	logger  logger.Logger
+	healthy atomic.Bool
 }
 
-const cacheOperationTimeout = 150 * time.Millisecond
+const (
+	cacheOperationTimeout = 150 * time.Millisecond
+	healthCheckInterval   = 10 * time.Second
+	healthCheckTimeout    = 2 * time.Second
+)
 
-func NewCache(client *goredis.Client, l logger.Logger) domaincache.ICache {
-	return &Cache{
+func NewCache(ctx context.Context, client *goredis.Client, l logger.Logger) domaincache.ICache {
+	c := &Cache{
 		client: client,
 		logger: l,
 	}
+	c.healthy.Store(true)
+	go c.watchHealth(ctx)
+	return c
+}
+
+func (c *Cache) watchHealth(ctx context.Context) {
+	ticker := time.NewTicker(healthCheckInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			pingCtx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+			err := c.client.Ping(pingCtx).Err()
+			cancel()
+
+			wasHealthy := c.healthy.Load()
+			if err != nil {
+				c.healthy.Store(false)
+				if wasHealthy {
+					c.logger.Warning("Redis became unavailable", logger.Any("error", err))
+				}
+			} else {
+				c.healthy.Store(true)
+				if !wasHealthy {
+					c.logger.Info("Redis recovered")
+				}
+			}
+		}
+	}
+}
+
+func (c *Cache) IsHealthy(_ context.Context) bool {
+	return c.healthy.Load()
 }
 
 func (c *Cache) Get(ctx context.Context, key string) (string, error) {
